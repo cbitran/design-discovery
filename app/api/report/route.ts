@@ -23,14 +23,23 @@ export async function GET() {
     const data = await res.json()
     const records = (data.records || []) as { id: string; fields: Record<string, string> }[]
 
-    if (records.length === 0) {
+    // As respostas ficam serializadas como JSON na coluna "Notes".
+    const responses = records
+      .map((r) => {
+        let parsed: Record<string, string> = {}
+        try {
+          if (r.fields.Notes) parsed = JSON.parse(r.fields.Notes)
+        } catch {
+          parsed = {}
+        }
+        return { id: r.id, fields: parsed }
+      })
+      .filter((r) => Object.keys(r.fields).length > 0)
+      .sort((a, b) => String(b.fields.Timestamp || '').localeCompare(String(a.fields.Timestamp || '')))
+
+    if (responses.length === 0) {
       return NextResponse.json({ error: 'Nenhuma resposta encontrada ainda.' }, { status: 404 })
     }
-
-    // Ordena da mais recente para a mais antiga (pelo Timestamp salvo no submit)
-    const responses = records
-      .map((r) => ({ id: r.id, fields: r.fields }))
-      .sort((a, b) => String(b.fields.Timestamp || '').localeCompare(String(a.fields.Timestamp || '')))
 
     return NextResponse.json({ responses, count: responses.length })
   } catch (e) {

@@ -13,15 +13,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Airtable não configurado' }, { status: 500 })
     }
 
-    const fields: Record<string, string> = {
-      Timestamp: new Date().toISOString(),
-    }
-    for (const [key, value] of Object.entries(answers)) {
-      if (Array.isArray(value)) {
-        fields[key] = (value as string[]).join(', ')
-      } else {
-        fields[key] = String(value ?? '')
-      }
+    // A tabela usa as colunas padrão do Airtable (Name, Notes).
+    // Guardamos o respondente em "Name" e todas as respostas (JSON) em "Notes".
+    const payload = { ...answers, Timestamp: new Date().toISOString() }
+    const nome = String(answers?.nome || 'Anônimo')
+    const funcao = answers?.funcao ? ` — ${answers.funcao}` : ''
+
+    const fields = {
+      Name: `${nome}${funcao}`,
+      Notes: JSON.stringify(payload),
     }
 
     const res = await fetch(`https://api.airtable.com/v0/${airtableBase}/${encodeURIComponent(airtableTable)}`, {
