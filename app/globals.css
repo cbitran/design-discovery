@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0a0a0a;
+  --bg-2: #111111;
+  --bg-3: #1a1a1a;
+  --border: #2a2a2a;
+  --border-hover: #3a3a3a;
+  --accent: #e8ff00;
+  --accent-dim: rgba(232,255,0,0.08);
+  --accent-dim2: rgba(232,255,0,0.15);
+  --text: #f0f0f0;
+  --text-2: #888888;
+  --text-3: #555555;
+  --success: #22c55e;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', 'DM Sans', system-ui, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+input, textarea, select {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  padding: 12px 16px;
+  width: 100%;
+  transition: border-color 0.15s;
+  outline: none;
+  resize: vertical;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--text-3);
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 2px; }
