@@ -1,13 +1,12 @@
 # Descoberta de Necessidades — Design
 
-Formulário inteligente para mapear necessidades de handoff, construído com Next.js + Airtable + Claude.
+Formulário para mapear necessidades de handoff, construído com Next.js + Airtable.
 
 ## Stack
 
-- **Next.js 15** (App Router)
+- **Next.js 16** (App Router)
 - **Airtable** — banco de dados das respostas
-- **Anthropic Claude** — relatório consolidado por IA
-- **Vercel** — hospedagem recomendada
+- **Vercel** — hospedagem recomendada (plano gratuito)
 
 ---
 
@@ -41,7 +40,6 @@ cp .env.example .env.local
 AIRTABLE_TOKEN=pat_xxxxxxxxxxxxxxxxxxxx
 AIRTABLE_BASE_ID=appXXXXXXXXXXXXXX
 AIRTABLE_TABLE_NAME=Respostas
-ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxx
 ```
 
 ### 4. Rodar localmente
@@ -60,7 +58,7 @@ npm install -g vercel
 vercel --prod
 ```
 
-No painel do Vercel, adicione as 4 variáveis de ambiente em **Settings → Environment Variables**.
+No painel do Vercel, adicione as 3 variáveis de ambiente em **Settings → Environment Variables**.
 
 ---
 
@@ -69,9 +67,9 @@ No painel do Vercel, adicione as 4 variáveis de ambiente em **Settings → Envi
 | Rota | Descrição |
 |------|-----------|
 | `/` | Formulário público (para os colaboradores) |
-| `/relatorio` | Painel de relatório consolidado (para o time de Design) |
+| `/relatorio` | Painel com as respostas coletadas (para o time de Design) |
 | `/api/submit` | POST — salva resposta no Airtable |
-| `/api/report` | GET — busca respostas + gera relatório com IA |
+| `/api/report` | GET — busca as respostas do Airtable |
 
 ---
 
@@ -84,7 +82,7 @@ app/
     page.tsx        # Painel de relatório
   api/
     submit/route.ts # Salvar no Airtable
-    report/route.ts # Gerar relatório com Claude
+    report/route.ts # Buscar respostas do Airtable
 components/
   FormStep.tsx      # Componente de perguntas
 lib/

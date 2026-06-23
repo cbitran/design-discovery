@@ -1,24 +1,33 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { SECTIONS, Question } from '@/lib/questions'
+
+type Fields = Record<string, string>
+interface ResponseRecord {
+  id: string
+  fields: Fields
+}
+
+// Mapa id -> pergunta, para exibir labels e tipos
+const ALL_QUESTIONS: Question[] = SECTIONS.flatMap((s) => s.questions)
+const QUESTION_BY_ID = new Map(ALL_QUESTIONS.map((q) => [q.id, q]))
 
 export default function ReportPage() {
-  const [loading, setLoading] = useState(false)
-  const [report, setReport] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [responses, setResponses] = useState<ResponseRecord[]>([])
   const [count, setCount] = useState(0)
   const [error, setError] = useState('')
-  const [generated, setGenerated] = useState(false)
+  const [openId, setOpenId] = useState<string | null>(null)
 
-  async function generateReport() {
+  async function load() {
     setLoading(true)
     setError('')
-    setReport('')
     try {
       const res = await fetch('/api/report')
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao gerar relatório')
-      setReport(data.report)
+      if (!res.ok) throw new Error(data.error || 'Erro ao carregar respostas')
+      setResponses(data.responses)
       setCount(data.count)
-      setGenerated(true)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro desconhecido')
     } finally {
@@ -26,36 +35,28 @@ export default function ReportPage() {
     }
   }
 
-  function copyReport() {
-    navigator.clipboard.writeText(report)
-  }
+  useEffect(() => {
+    load()
+  }, [])
 
-  // Simple markdown-like render
-  function renderReport(text: string) {
-    return text.split('\n').map((line, i) => {
-      if (line.startsWith('# ')) return <h1 key={i} style={{ fontSize: '22px', fontWeight: 600, color: 'var(--text)', margin: '24px 0 12px' }}>{line.slice(2)}</h1>
-      if (line.startsWith('## ') || line.match(/^\*\*\d+\./)) {
-        const clean = line.replace(/^#{1,3} /, '').replace(/\*\*/g, '')
-        return <h2 key={i} style={{ fontSize: '16px', fontWeight: 600, color: 'var(--accent)', margin: '20px 0 8px' }}>{clean}</h2>
+  // Agrega as opções mais marcadas das perguntas de chips
+  const chipQuestions = ALL_QUESTIONS.filter(
+    (q) => q.type === 'chips-single' || q.type === 'chips-multi'
+  )
+  const aggregations = chipQuestions
+    .map((q) => {
+      const counts = new Map<string, number>()
+      for (const r of responses) {
+        const raw = r.fields[q.id]
+        if (!raw) continue
+        for (const opt of String(raw).split(',').map((s) => s.trim()).filter(Boolean)) {
+          counts.set(opt, (counts.get(opt) || 0) + 1)
+        }
       }
-      if (line.startsWith('**') && line.endsWith('**')) {
-        return <p key={i} style={{ fontWeight: 600, color: 'var(--text)', margin: '12px 0 4px' }}>{line.replace(/\*\*/g, '')}</p>
-      }
-      if (line.startsWith('- ') || line.startsWith('• ')) {
-        return <p key={i} style={{ paddingLeft: '16px', color: 'var(--text-2)', margin: '4px 0', fontSize: '14px', borderLeft: '2px solid var(--border)' }}>{line.slice(2)}</p>
-      }
-      if (line.trim() === '') return <div key={i} style={{ height: '8px' }} />
-      // Replace inline **bold**
-      const parts = line.split(/(\*\*[^*]+\*\*)/)
-      return (
-        <p key={i} style={{ color: 'var(--text-2)', fontSize: '14px', lineHeight: 1.7, margin: '4px 0' }}>
-          {parts.map((p, j) =>
-            p.startsWith('**') ? <strong key={j} style={{ color: 'var(--text)', fontWeight: 600 }}>{p.replace(/\*\*/g, '')}</strong> : p
-          )}
-        </p>
-      )
+      const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1])
+      return { q, ranked }
     })
-  }
+    .filter((a) => a.ranked.length > 0)
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -75,114 +76,149 @@ export default function ReportPage() {
               <rect x="8" y="8" width="5" height="5" rx="1" fill="#0a0a0a" />
             </svg>
           </div>
-          <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-2)' }}>Relatório Consolidado</span>
+          <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-2)' }}>Respostas coletadas</span>
         </div>
         <a href="/" style={{ fontSize: '13px', color: 'var(--text-3)', textDecoration: 'none' }}>← Voltar ao formulário</a>
       </div>
 
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '48px 24px' }}>
         {/* Header */}
-        <div style={{ marginBottom: '40px' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: 600, marginBottom: '8px' }}>Insights de Design</h1>
-          <p style={{ color: 'var(--text-2)', fontSize: '15px' }}>
-            Relatório gerado por IA com base em todas as respostas coletadas.
-          </p>
-        </div>
-
-        {!generated && (
-          <div style={{
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '40px',
-            textAlign: 'center',
-            background: 'var(--bg-2)',
-          }}>
-            <div style={{ fontSize: '40px', marginBottom: '16px' }}>📊</div>
-            <h2 style={{ fontSize: '18px', fontWeight: 500, marginBottom: '8px' }}>Gerar relatório consolidado</h2>
-            <p style={{ color: 'var(--text-2)', fontSize: '14px', marginBottom: '24px' }}>
-              A IA vai ler todas as respostas do Airtable e gerar um relatório executivo com prioridades e recomendações.
+        <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ fontSize: '32px', fontWeight: 600, marginBottom: '8px' }}>Feedbacks de Design</h1>
+            <p style={{ color: 'var(--text-2)', fontSize: '15px' }}>
+              Todas as respostas coletadas, direto do Airtable.
             </p>
-            <button
-              onClick={generateReport}
-              disabled={loading}
-              style={{
-                padding: '12px 32px',
-                background: loading ? 'var(--bg-3)' : 'var(--accent)',
-                border: 'none',
-                borderRadius: 'var(--radius)',
-                color: loading ? 'var(--text-3)' : '#0a0a0a',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: loading ? 'default' : 'pointer',
-              }}
-            >
-              {loading ? '⟳ Analisando respostas...' : '✦ Gerar com IA'}
-            </button>
           </div>
-        )}
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{
+              padding: '10px 16px', background: 'transparent',
+              border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+              fontSize: '13px', color: 'var(--text-2)', cursor: loading ? 'default' : 'pointer',
+            }}
+          >
+            {loading ? '⟳ Carregando...' : '↻ Atualizar'}
+          </button>
+        </div>
 
         {error && (
           <div style={{
             padding: '16px', background: 'rgba(239,68,68,0.1)',
             border: '1px solid rgba(239,68,68,0.3)',
-            borderRadius: 'var(--radius)', color: '#f87171', fontSize: '14px', marginTop: '16px',
+            borderRadius: 'var(--radius)', color: '#f87171', fontSize: '14px',
           }}>
             {error}
           </div>
         )}
 
-        {generated && report && (
-          <div>
+        {loading && !error && (
+          <p style={{ color: 'var(--text-3)', fontSize: '14px' }}>Carregando respostas...</p>
+        )}
+
+        {!loading && !error && (
+          <>
             {/* Meta */}
-            <div style={{
-              display: 'flex', gap: '12px', marginBottom: '32px', flexWrap: 'wrap',
-            }}>
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', flexWrap: 'wrap' }}>
               <div style={{
                 padding: '10px 16px', background: 'var(--bg-2)',
                 border: '1px solid var(--border)', borderRadius: 'var(--radius)',
                 fontSize: '13px', color: 'var(--text-2)',
               }}>
-                <strong style={{ color: 'var(--accent)' }}>{count}</strong> respondente{count !== 1 ? 's' : ''} analisado{count !== 1 ? 's' : ''}
+                <strong style={{ color: 'var(--accent)' }}>{count}</strong> resposta{count !== 1 ? 's' : ''} coletada{count !== 1 ? 's' : ''}
               </div>
-              <div style={{
-                padding: '10px 16px', background: 'var(--bg-2)',
-                border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                fontSize: '13px', color: 'var(--text-2)',
-              }}>
-                Gerado em {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-              </div>
-              <button
-                onClick={copyReport}
-                style={{
-                  padding: '10px 16px', background: 'transparent',
-                  border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                  fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer',
-                }}
-              >
-                Copiar texto
-              </button>
-              <button
-                onClick={generateReport}
-                style={{
-                  padding: '10px 16px', background: 'transparent',
-                  border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                  fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer',
-                }}
-              >
-                ↻ Regenerar
-              </button>
             </div>
 
-            {/* Report content */}
-            <div style={{
-              background: 'var(--bg-2)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '32px',
-            }}>
-              {renderReport(report)}
+            {/* Agregações das opções mais marcadas */}
+            {aggregations.length > 0 && (
+              <div style={{ marginBottom: '40px' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--accent)', marginBottom: '16px' }}>
+                  Opções mais marcadas
+                </h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {aggregations.map(({ q, ranked }) => {
+                    const max = ranked[0][1]
+                    return (
+                      <div key={q.id} style={{
+                        background: 'var(--bg-2)', border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-lg)', padding: '20px',
+                      }}>
+                        <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '12px', lineHeight: 1.4 }}>{q.label}</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {ranked.map(([opt, n]) => (
+                            <div key={opt} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ flex: 1, height: '24px', background: 'var(--bg-3)', borderRadius: '6px', overflow: 'hidden', position: 'relative' }}>
+                                <div style={{ position: 'absolute', inset: 0, width: `${(n / max) * 100}%`, background: 'var(--accent-dim2)', borderRight: '2px solid var(--accent)' }} />
+                                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'var(--text)' }}>{opt}</span>
+                              </div>
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent)', minWidth: '20px', textAlign: 'right' }}>{n}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Lista de respondentes */}
+            <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--accent)', marginBottom: '16px' }}>
+              Respondentes
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {responses.map((r, i) => {
+                const open = openId === r.id
+                const nome = r.fields.nome || 'Anônimo'
+                const funcao = r.fields.funcao || 'função não informada'
+                return (
+                  <div key={r.id} style={{
+                    background: 'var(--bg-2)', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-lg)', overflow: 'hidden',
+                  }}>
+                    <button
+                      onClick={() => setOpenId(open ? null : r.id)}
+                      style={{
+                        width: '100%', padding: '16px 20px', background: 'transparent',
+                        border: 'none', display: 'flex', alignItems: 'center',
+                        justifyContent: 'space-between', textAlign: 'left',
+                      }}
+                    >
+                      <div>
+                        <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>{nome}</span>
+                        <span style={{ fontSize: '13px', color: 'var(--text-3)', marginLeft: '10px' }}>{funcao}</span>
+                      </div>
+                      <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>
+                        #{responses.length - i} {open ? '▲' : '▼'}
+                      </span>
+                    </button>
+                    {open && (
+                      <div style={{ padding: '4px 20px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {ALL_QUESTIONS.map((q) => {
+                          const val = r.fields[q.id]
+                          if (!val) return null
+                          return (
+                            <div key={q.id}>
+                              <p style={{ fontSize: '12px', color: 'var(--text-3)', marginBottom: '4px', lineHeight: 1.4 }}>{q.label}</p>
+                              <p style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                {q.type === 'scale' ? `${val} / 5` : val}
+                              </p>
+                            </div>
+                          )
+                        })}
+                        {QUESTION_BY_ID && r.fields.Timestamp && (
+                          <p style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '4px' }}>
+                            Enviado em {new Date(r.fields.Timestamp).toLocaleString('pt-BR')}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>
