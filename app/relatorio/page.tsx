@@ -19,6 +19,15 @@ export default function DashboardPage() {
   const [responses, setResponses] = useState<ResponseRecord[]>([])
   const [error, setError] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
+  const [openQ, setOpenQ] = useState<Set<string>>(new Set())
+
+  function toggleQ(id: string) {
+    setOpenQ((prev) => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id); else n.add(id)
+      return n
+    })
+  }
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
@@ -251,23 +260,37 @@ export default function DashboardPage() {
               </Section>
             )}
 
-            {/* RESPOSTAS ABERTAS */}
+            {/* RESPOSTAS ABERTAS (accordion) */}
             <Section title="Respostas abertas" delay={320}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {openQuestions.map((q) => {
                   const vals = responses.map((r) => ({ nome: r.fields.nome || 'Anônimo', v: r.fields[q.id] })).filter((x) => x.v)
                   if (vals.length === 0) return null
+                  const aberto = openQ.has(q.id)
                   return (
-                    <div key={q.id} style={card}>
-                      <p style={chartLabel}>{q.label}</p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {vals.map((x, i) => (
-                          <div key={i} style={{ paddingLeft: '12px', borderLeft: '2px solid var(--border)' }}>
-                            <p style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{x.v}</p>
-                            <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>— {x.nome}</span>
-                          </div>
-                        ))}
-                      </div>
+                    <div key={q.id} style={{ ...card, padding: 0, overflow: 'hidden' }}>
+                      <button
+                        onClick={() => toggleQ(q.id)}
+                        style={{ width: '100%', padding: '16px 20px', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', textAlign: 'left' }}
+                      >
+                        <span style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.4 }}>{q.label}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                          <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--accent)', background: 'var(--accent-dim2)', borderRadius: '100px', padding: '2px 10px', whiteSpace: 'nowrap' }}>
+                            {vals.length} resposta{vals.length !== 1 ? 's' : ''}
+                          </span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>{aberto ? '▲' : '▼'}</span>
+                        </span>
+                      </button>
+                      {aberto && (
+                        <div className="reveal" style={{ padding: '0 20px 18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {vals.map((x, i) => (
+                            <div key={i} style={{ paddingLeft: '12px', borderLeft: '2px solid var(--border)' }}>
+                              <p style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{x.v}</p>
+                              <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>— {x.nome}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
