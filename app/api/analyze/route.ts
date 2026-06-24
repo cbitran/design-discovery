@@ -72,7 +72,7 @@ Responda APENAS com um JSON válido neste formato exato:
 Regras: 3 a 5 itens em "melhorias", 2 a 4 em "atencao", 3 itens em "direcionamento" (os mais impactantes). Seja específico e objetivo.`
 
     const aiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
