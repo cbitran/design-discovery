@@ -116,7 +116,7 @@ export default function DashboardPage() {
         </div>
 
         {error && <ErrorBox>{error}</ErrorBox>}
-        {loading && !error && <p style={{ color: 'var(--text-3)', fontSize: '14px' }}>Carregando...</p>}
+        {loading && !error && <DashboardSkeleton />}
 
         {!loading && !error && count === 0 && (
           <div style={{ ...card, textAlign: 'center', padding: '48px' }}>
@@ -131,14 +131,14 @@ export default function DashboardPage() {
         {!loading && !error && count > 0 && (
           <>
             {/* MÉTRICAS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '40px' }}>
+            <div className="reveal" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '40px' }}>
               <Metric label="Respostas" value={String(count)} />
               <Metric label="Função mais comum" value={topFunc ? topFunc[0] : '—'} sub={topFunc ? `${topFunc[1]} pessoa(s)` : ''} />
               <Metric label="Impacto médio do handoff" value={impactoMedio !== null ? `${impactoMedio.toFixed(1)} / 5` : '—'} sub="quanto trava prazos" />
             </div>
 
             {/* ANÁLISE IA */}
-            <Section title="Análise inteligente" accent>
+            <Section title="Análise inteligente" accent delay={80}>
               {!analysis && (
                 <div style={{ ...card, textAlign: 'center', padding: '32px' }}>
                   <p style={{ color: 'var(--text-2)', fontSize: '14px', marginBottom: '20px' }}>
@@ -170,7 +170,7 @@ export default function DashboardPage() {
 
             {/* GRÁFICOS — CHIPS */}
             {chipCharts.length > 0 && (
-              <Section title="Opções mais marcadas">
+              <Section title="Opções mais marcadas" delay={160}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '16px' }}>
                   {chipCharts.map(({ q, ranked }) => {
                     const max = ranked[0][1]
@@ -181,7 +181,7 @@ export default function DashboardPage() {
                           {ranked.map(([opt, n]) => (
                             <div key={opt} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                               <div style={barTrack}>
-                                <div style={{ position: 'absolute', inset: 0, width: `${(n / max) * 100}%`, background: 'var(--accent-dim2)', borderRight: '2px solid var(--accent)' }} />
+                                <div style={{ position: 'absolute', inset: 0, width: `${(n / max) * 100}%`, background: 'var(--accent-dim2)', borderRight: '2px solid var(--accent)', transformOrigin: 'left', animation: 'growBar 0.6s cubic-bezier(0.22,1,0.36,1) both' }} />
                                 <span style={barText}>{opt}</span>
                               </div>
                               <span style={barCount}>{n}</span>
@@ -197,7 +197,7 @@ export default function DashboardPage() {
 
             {/* GRÁFICOS — ESCALAS */}
             {scaleCharts.length > 0 && (
-              <Section title="Escalas">
+              <Section title="Escalas" delay={240}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '16px' }}>
                   {scaleCharts.map(({ q, dist, media, total }) => {
                     const max = Math.max(...dist, 1)
@@ -212,7 +212,7 @@ export default function DashboardPage() {
                           {dist.map((n, i) => (
                             <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', height: '100%', justifyContent: 'flex-end' }}>
                               <span style={{ fontSize: '11px', color: 'var(--text-2)' }}>{n}</span>
-                              <div style={{ width: '100%', height: `${(n / max) * 100}%`, minHeight: n ? '4px' : '0', background: 'var(--accent)', borderRadius: '4px 4px 0 0', opacity: n ? 1 : 0.15 }} />
+                              <div style={{ width: '100%', height: `${(n / max) * 100}%`, minHeight: n ? '4px' : '0', background: 'var(--accent)', borderRadius: '4px 4px 0 0', opacity: n ? 1 : 0.15, transformOrigin: 'bottom', animation: 'growBarY 0.6s cubic-bezier(0.22,1,0.36,1) both' }} />
                               <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>{i + 1}</span>
                             </div>
                           ))}
@@ -225,7 +225,7 @@ export default function DashboardPage() {
             )}
 
             {/* RESPOSTAS ABERTAS */}
-            <Section title="Respostas abertas">
+            <Section title="Respostas abertas" delay={320}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {openQuestions.map((q) => {
                   const vals = responses.map((r) => ({ nome: r.fields.nome || 'Anônimo', v: r.fields[q.id] })).filter((x) => x.v)
@@ -248,7 +248,7 @@ export default function DashboardPage() {
             </Section>
 
             {/* TABULAÇÃO POR RESPONDENTE */}
-            <Section title="Respondentes (detalhe)">
+            <Section title="Respondentes (detalhe)" delay={400}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {responses.map((r, i) => {
                   const open = openId === r.id
@@ -309,9 +309,9 @@ function TopBar() {
   )
 }
 
-function Section({ title, children, accent }: { title: string; children: React.ReactNode; accent?: boolean }) {
+function Section({ title, children, accent, delay = 0 }: { title: string; children: React.ReactNode; accent?: boolean; delay?: number }) {
   return (
-    <div style={{ marginBottom: '44px' }}>
+    <div className="reveal" style={{ marginBottom: '44px', animationDelay: `${delay}ms` }}>
       <h2 style={{ fontSize: '13px', fontWeight: 600, color: accent ? 'var(--accent)' : 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '16px' }}>{title}</h2>
       {children}
     </div>
@@ -351,6 +351,38 @@ function AnalysisGroup({ title, items, numbered }: { title: string; items?: Anal
 function ErrorBox({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ padding: '14px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius)', color: '#f87171', fontSize: '14px' }}>{children}</div>
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <div>
+      {/* métricas */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '40px' }}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} style={card}>
+            <div className="skeleton" style={{ height: '12px', width: '60%', marginBottom: '12px' }} />
+            <div className="skeleton" style={{ height: '24px', width: '45%' }} />
+          </div>
+        ))}
+      </div>
+      {/* blocos */}
+      {[0, 1].map((b) => (
+        <div key={b} style={{ marginBottom: '44px' }}>
+          <div className="skeleton" style={{ height: '12px', width: '140px', marginBottom: '16px' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '16px' }}>
+            {[0, 1].map((i) => (
+              <div key={i} style={card}>
+                <div className="skeleton" style={{ height: '12px', width: '70%', marginBottom: '16px' }} />
+                {[0, 1, 2, 3].map((j) => (
+                  <div key={j} className="skeleton" style={{ height: '26px', width: `${90 - j * 15}%`, marginBottom: '8px' }} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 
