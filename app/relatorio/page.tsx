@@ -56,6 +56,25 @@ export default function DashboardPage() {
 
   useEffect(() => { load() }, [])
 
+  function exportCSV() {
+    const headers = [...ALL_QUESTIONS.map((q) => q.label), 'Enviado em']
+    const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`
+    const rows = responses.map((r) => {
+      const cells = ALL_QUESTIONS.map((q) => r.fields[q.id] ?? '')
+      const ts = r.fields.Timestamp ? new Date(r.fields.Timestamp).toLocaleString('pt-BR') : ''
+      return [...cells, ts].map(esc).join(',')
+    })
+    // BOM para o Google Sheets / Excel lerem acentos corretamente
+    const csv = '﻿' + [headers.map(esc).join(','), ...rows].join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `respostas-design-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const count = responses.length
 
   // ---- Métricas rápidas ----
@@ -110,9 +129,17 @@ export default function DashboardPage() {
             <h1 style={{ fontSize: '32px', fontWeight: 600, marginBottom: '6px' }}>Dashboard de Design</h1>
             <p style={{ color: 'var(--text-2)', fontSize: '15px' }}>Tabulação, gráficos e análise das respostas coletadas.</p>
           </div>
-          <button onClick={load} disabled={loading} style={btnGhost}>
-            {loading ? '⟳ Carregando...' : '↻ Atualizar'}
-          </button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {count > 0 && (
+              <button onClick={() => { exportCSV(); window.open('https://sheets.new', '_blank') }} style={btnSheets} title="Baixa um CSV e abre o Google Sheets para você importar (Arquivo → Importar → Upload)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.6"/><path d="M13 2v5h5M8 13h8M8 16h8M8 10h3" stroke="currentColor" strokeWidth="1.6"/></svg>
+                Exportar p/ Sheets
+              </button>
+            )}
+            <button onClick={load} disabled={loading} style={btnGhost}>
+              {loading ? '⟳ Carregando...' : '↻ Atualizar'}
+            </button>
+          </div>
         </div>
 
         {error && <ErrorBox>{error}</ErrorBox>}
@@ -394,3 +421,4 @@ const barText: React.CSSProperties = { position: 'absolute', left: '10px', top: 
 const barCount: React.CSSProperties = { fontSize: '13px', fontWeight: 600, color: 'var(--accent)', minWidth: '20px', textAlign: 'right' }
 const btnPrimary: React.CSSProperties = { padding: '12px 28px', background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius)', color: '#0a0a0a', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }
 const btnGhost: React.CSSProperties = { padding: '10px 16px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer' }
+const btnSheets: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '10px 16px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 'var(--radius)', fontSize: '13px', fontWeight: 500, color: '#4ade80', cursor: 'pointer' }
