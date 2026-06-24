@@ -37,10 +37,7 @@ export async function GET() {
       .filter((r) => Object.keys(r.fields).length > 0)
       .sort((a, b) => String(b.fields.Timestamp || '').localeCompare(String(a.fields.Timestamp || '')))
 
-    if (responses.length === 0) {
-      return NextResponse.json({ error: 'Nenhuma resposta encontrada ainda.' }, { status: 404 })
-    }
-
+    // Vazio NÃO é erro: o dashboard renderiza a estrutura zerada.
     return NextResponse.json({ responses, count: responses.length })
   } catch (e) {
     console.error(e)

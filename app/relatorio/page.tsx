@@ -99,7 +99,8 @@ export default function DashboardPage() {
   // ---- Gráficos: perguntas de chips ----
   const chipQuestions = ALL_QUESTIONS.filter((q) => q.type === 'chips-single' || q.type === 'chips-multi')
   const chipCharts = chipQuestions.map((q) => {
-    const counts = new Map<string, number>()
+    // começa com todas as opções definidas zeradas, para a estrutura aparecer mesmo sem respostas
+    const counts = new Map<string, number>((q.options || []).map((o) => [o, 0]))
     for (const r of responses) {
       const raw = r.fields[q.id]
       if (!raw) continue
@@ -121,7 +122,7 @@ export default function DashboardPage() {
       if (v >= 1 && v <= 5) { dist[v - 1]++; total++; soma += v }
     }
     return { q, dist, media: total ? soma / total : 0, total }
-  }).filter((c) => c.total > 0)
+  })
 
   // ---- Respostas abertas (textarea/text) ----
   const openQuestions = ALL_QUESTIONS.filter((q) => q.type === 'textarea' || q.type === 'text')
@@ -154,18 +155,16 @@ export default function DashboardPage() {
         {error && <ErrorBox>{error}</ErrorBox>}
         {loading && !error && <DashboardSkeleton />}
 
-        {!loading && !error && count === 0 && (
-          <div style={{ ...card, textAlign: 'center', padding: '48px' }}>
-            <div style={{ fontSize: '40px', marginBottom: '12px' }}>📭</div>
-            <h2 style={{ fontSize: '18px', fontWeight: 500, marginBottom: '6px' }}>Nenhuma resposta ainda</h2>
-            <p style={{ color: 'var(--text-2)', fontSize: '14px' }}>
-              Compartilhe o formulário. Assim que alguém responder, os dados aparecem aqui.
-            </p>
-          </div>
-        )}
-
-        {!loading && !error && count > 0 && (
+        {!loading && !error && (
           <>
+            {count === 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', marginBottom: '32px', background: 'var(--accent-dim)', border: '1px solid rgba(232,255,0,0.2)', borderRadius: 'var(--radius-lg)' }}>
+                <span style={{ fontSize: '16px' }}>📋</span>
+                <p style={{ fontSize: '14px', color: 'var(--text-2)', lineHeight: 1.5 }}>
+                  Ainda sem respostas. Os campos abaixo serão preenchidos automaticamente conforme o time responder o formulário.
+                </p>
+              </div>
+            )}
             {/* MÉTRICAS */}
             <div className="reveal" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '40px' }}>
               <Metric label="Respostas" value={String(count)} />
@@ -178,9 +177,11 @@ export default function DashboardPage() {
               {!analysis && (
                 <div style={{ ...card, textAlign: 'center', padding: '32px' }}>
                   <p style={{ color: 'var(--text-2)', fontSize: '14px', marginBottom: '20px' }}>
-                    Gere um diagnóstico com melhorias, pontos de atenção e direcionamento — feito por IA a partir das respostas.
+                    {count === 0
+                      ? 'A análise por IA (melhorias, pontos de atenção e direcionamento) fica disponível assim que houver respostas.'
+                      : 'Gere um diagnóstico com melhorias, pontos de atenção e direcionamento — feito por IA a partir das respostas.'}
                   </p>
-                  <button onClick={runAnalysis} disabled={analyzing} style={btnPrimary}>
+                  <button onClick={runAnalysis} disabled={analyzing || count === 0} style={{ ...btnPrimary, opacity: count === 0 ? 0.4 : 1, cursor: count === 0 ? 'default' : 'pointer' }}>
                     {analyzing ? '✦ Analisando respostas...' : '✦ Gerar análise'}
                   </button>
                   {analyzeError && <div style={{ marginTop: '16px' }}><ErrorBox>{analyzeError}</ErrorBox></div>}
@@ -209,7 +210,7 @@ export default function DashboardPage() {
               <Section title="Opções mais marcadas" delay={160}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '16px' }}>
                   {chipCharts.map(({ q, ranked }) => {
-                    const max = ranked[0][1]
+                    const max = Math.max(...ranked.map((r) => r[1]), 1)
                     return (
                       <div key={q.id} style={card}>
                         <p style={chartLabel}>{q.label}</p>
@@ -241,7 +242,7 @@ export default function DashboardPage() {
                       <div key={q.id} style={card}>
                         <p style={chartLabel}>{q.label}</p>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '16px' }}>
-                          <span style={{ fontSize: '28px', fontWeight: 700, color: 'var(--accent)' }}>{media.toFixed(1)}</span>
+                          <span style={{ fontSize: '28px', fontWeight: 700, color: total ? 'var(--accent)' : 'var(--text-3)' }}>{total ? media.toFixed(1) : '—'}</span>
                           <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>média · {total} resposta(s)</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '90px' }}>
@@ -265,8 +266,8 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {openQuestions.map((q) => {
                   const vals = responses.map((r) => ({ nome: r.fields.nome || 'Anônimo', v: r.fields[q.id] })).filter((x) => x.v)
-                  if (vals.length === 0) return null
                   const aberto = openQ.has(q.id)
+                  const vazio = vals.length === 0
                   return (
                     <div key={q.id} style={{ ...card, padding: 0, overflow: 'hidden' }}>
                       <button
@@ -275,7 +276,7 @@ export default function DashboardPage() {
                       >
                         <span style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.4 }}>{q.label}</span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                          <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--accent)', background: 'var(--accent-dim2)', borderRadius: '100px', padding: '2px 10px', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 500, color: vazio ? 'var(--text-3)' : 'var(--accent)', background: vazio ? 'var(--bg-3)' : 'var(--accent-dim2)', borderRadius: '100px', padding: '2px 10px', whiteSpace: 'nowrap' }}>
                             {vals.length} resposta{vals.length !== 1 ? 's' : ''}
                           </span>
                           <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>{aberto ? '▲' : '▼'}</span>
@@ -283,6 +284,7 @@ export default function DashboardPage() {
                       </button>
                       {aberto && (
                         <div className="reveal" style={{ padding: '0 20px 18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {vazio && <p style={{ fontSize: '13px', color: 'var(--text-3)' }}>Nenhuma resposta ainda.</p>}
                           {vals.map((x, i) => (
                             <div key={i} style={{ paddingLeft: '12px', borderLeft: '2px solid var(--border)' }}>
                               <p style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{x.v}</p>
@@ -300,6 +302,9 @@ export default function DashboardPage() {
             {/* TABULAÇÃO POR RESPONDENTE */}
             <Section title="Respondentes (detalhe)" delay={400}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {responses.length === 0 && (
+                  <div style={{ ...card, color: 'var(--text-3)', fontSize: '14px' }}>Nenhum respondente ainda.</div>
+                )}
                 {responses.map((r, i) => {
                   const open = openId === r.id
                   return (
